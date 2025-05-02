@@ -40,7 +40,7 @@ jobs:
             cd ..;
       - uses: rossjrw/pr-preview-action@v1
         with:
-          source-dir: docs/build
+          source-dir: .
           preview-branch: gh-pages
-          umbrella-dir: docs/pr-preview
-          pages-base-path: docs
+          umbrella-dir: pr-preview
+          action: auto
