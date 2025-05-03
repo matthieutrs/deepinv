@@ -54,9 +54,12 @@ jobs:
 #          branch: gh-pages
 #          clean-exclude: pr-preview
 #          force: false
-      - uses: JamesIves/github-pages-deploy-action@v4
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         with:
-          folder: .
-          branch: gh-pages
-          clean-exclude: pr-preview
-          force: false
+          publish_branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          exclude_assets: 'pr-preview'
+          force_orphan: true
+          enable_jekyll: false
