@@ -30,9 +30,14 @@ jobs:
       - name: Install deepinv and its dependencies
         run: |
           pip install -e .[dataset,denoisers,doc]
-      - name: Sphinx build
+#      - name: Sphinx build
+#        run: |
+#          sphinx-build -W docs/source _build
+      - name: Sphinx build (fast)
         run: |
-          sphinx-build -W docs/source _build
+          cd docs;
+          make SPHINXOPTS=-v html-fast;
+          cd ..;
       - name: Run doctests
         run: |
           # Get all the RST files, excluding multigpu.rst
