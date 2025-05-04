@@ -35,9 +35,7 @@ jobs:
           pip install -e .[dataset,denoisers,doc]
       - name: Sphinx build
         run: |
-            cd docs;
-            make SPHINXOPTS=-v html-fast;
-            cd ..;
+          sphinx-build -W docs/source _build
       - uses: rossjrw/pr-preview-action@v1
         with:
           source-dir: .
