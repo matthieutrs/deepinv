@@ -4,7 +4,6 @@ on: [status]
 
 permissions: read-all
 
-
 jobs:
   circleci_artifacts_redirector_job:
     runs-on: ubuntu-latest
@@ -14,21 +13,18 @@ jobs:
       statuses: write
 
     steps:
-
-      - name: Debug
+      - name: Check CircleCI token
         run: |
           curl -I -H "Circle-Token: ${{ secrets.CIRCLE_CI_STATUS_TOKEN }}" https://circleci.com/api/v2/me
-
       - name: GitHub Action step
         id: step1
-        uses: scientific-python/circleci-artifacts-redirector-action@v1   # pin to a release
+        uses: matthieutrs/circleci-artifacts-redirector-action   # pin to a release
         with:
           api-token:  ${{ secrets.CIRCLE_CI_STATUS_TOKEN }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-path: 0/dev/index.html
           circleci-jobs: build_docs
           job-title: Check the rendered docs here!
-
       - name: Check the URL
         if: github.event.status != 'pending'
         run: |

@@ -30,9 +30,12 @@ jobs:
       - name: Install deepinv and its dependencies
         run: |
           pip install -e .[dataset,denoisers,doc]
-      - name: Sphinx build
+#      - name: Sphinx build
+#        run: |
+#          sphinx-build -W docs/source _build
+      - name: Sphinx build (fast)
         run: |
-          sphinx-build -W docs/source _build
+          sphinx-build -W -D plot_gallery=0 docs/source _build
       - name: Run doctests
         run: |
           # Get all the RST files, excluding multigpu.rst
@@ -50,11 +53,11 @@ jobs:
 #          clean-exclude: pr-preview
 #          force: false
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: _build/
+          exclude_assets: 'pr-preview'
           force_orphan: true
           enable_jekyll: false
