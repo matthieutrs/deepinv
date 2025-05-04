@@ -1,10 +1,8 @@
 name: Expose docs
 
-on:
-  push:
+on: [status]
 
 permissions: read-all
-
 
 jobs:
   circleci_artifacts_redirector_job:
