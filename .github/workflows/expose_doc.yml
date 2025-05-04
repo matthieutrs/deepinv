@@ -9,7 +9,7 @@ permissions: read-all
 jobs:
   circleci_artifacts_redirector_job:
     runs-on: ubuntu-latest
-    if: "${{ github.event.context == 'ci/circleci: build_docs' }}"
+#    if: "${{ github.event.context == 'ci/circleci: build_docs' }}"
 
     permissions:
       statuses: write
