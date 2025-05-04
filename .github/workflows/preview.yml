@@ -35,7 +35,7 @@ jobs:
           pip install -e .[dataset,denoisers,doc]
       - name: Sphinx build
         run: |
-          sphinx-build -W plot_gallery=0 docs/source _build
+          sphinx-build -W -D plot_gallery=0 docs/source _build
       - uses: rossjrw/pr-preview-action@v1
         with:
           source-dir: .
