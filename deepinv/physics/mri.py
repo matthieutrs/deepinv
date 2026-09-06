@@ -948,16 +948,17 @@ class SequentialMultiCoilMRI(DynamicMultiCoilMRI):
     r"""Sequential multi-coil MRI of a static image.
 
     The static image is repeated over time and can optionally undergo a
-    different motion transform in every frame:
+    different motion transform in every frame. The forward operator is
+    modelled as
 
     .. math::
-        y_{n,t} = \operatorname{diag}(p_t) F \operatorname{diag}(s_n) T_t(x).
+        y_{n,t} = \operatorname{diag}(p_t) F \operatorname{diag}(s_n) T_t( \operatorname{timecat}(x)),
 
-    The input image has shape ``(B,2,H,W)``. It is repeated across the time
-    dimension and sampled with a dynamic mask, producing measurements of shape
-    ``(B,2,N,T,H,W)``. The adjoint sums the frame-wise adjoints over time.
-    Volumetric inputs analogously map ``(B,2,D,H,W)`` to
-    ``(B,2,N,T,D,H,W)``.
+    where :math:`x` is the input image of shape ``(B,2,H,W)``, :math:`\operatorname{timecat}` is a concatenation operator
+    over the time dimension (producing an image of shape ``(B,2,T,H,W)``), `T_t` is a time-indexed transform,
+    :math:`s_n` is the n-th coil map, :math:`F` the Fourier transform, :math:`p_t`
+    the undersampling mask at time :math:`t`, and :math:`y_{n,t}` the sampled k-space data of the n-th coil
+    at time :math:`t`.
 
     :param TimeVaryingMotion motion: optional deterministic motion operator.
     :param dict[str, torch.Tensor] motion_params: optional motion parameters with leading dimensions
