@@ -168,7 +168,7 @@ class SequentialMaskGenerator(PhysicsGenerator):
 
 
     .. note::
-        By construction,
+        By construction, the sum of temporal masks is equal to the static mask, i.e.
 
         .. math::
 

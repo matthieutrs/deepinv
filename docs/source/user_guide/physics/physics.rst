@@ -76,7 +76,7 @@ This is particular useful when dealing with blind inverse problems or parameter 
        | :class:`EquispacedMaskGenerator <deepinv.physics.generator.EquispacedMaskGenerator>`
        | :class:`PolyOrderMaskGenerator <deepinv.physics.generator.PolyOrderMaskGenerator>`
        | :class:`SequentialMaskGenerator <deepinv.physics.generator.SequentialMaskGenerator>`
-       | :class:`BrownianMotionGenerator <deepinv.physics.generator.BrownianMotionGenerator>`
+       | :class:`RigidMotionGenerator <deepinv.physics.generator.RigidMotionGenerator>`
        | Cartesian mask generators support k+t dynamic sampling; the Brownian generator produces motion parameters.
 
    * - Tomography

@@ -107,7 +107,7 @@ Generators
    deepinv.physics.generator.EquispacedMaskGenerator
    deepinv.physics.generator.PolyOrderMaskGenerator
    deepinv.physics.generator.SequentialMaskGenerator
-   deepinv.physics.generator.BrownianMotionGenerator
+   deepinv.physics.generator.RigidMotionGenerator
 
 
 .. autosummary::

@@ -5,13 +5,20 @@ import torch
 from deepinv.physics.generator.base import PhysicsGenerator
 
 
-class BrownianMotionGenerator(PhysicsGenerator):
+class RigidMotionGenerator(PhysicsGenerator):
     r"""Generate bounded Brownian rigid-motion trajectories for 2D MRI.
 
-    Rotations and horizontal and vertical translations start at zero and evolve
-    independently. Each increment is Gaussian with standard deviation
-    :math:`\sigma\sqrt{\Delta t}`. Trajectories are reflected at their specified
-    bounds, rather than clipped, to avoid accumulating probability mass there.
+    This generator provides random translation and rotation trajectories. More precisely,
+    it generates sequences :math:`(\theta_t, x_t, y_t)_{0\leq t \leq T}` as brownian motion trajectories, i.e. in
+    the case of the rotation angle parameter :math:`\theta_t`,
+
+    .. math::
+       \theta_{t+dt} = \theta_{t} + \sigma_{\theta} \sqrt{dt} \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, 1),
+
+    where :math:`dt` is a stepsize, and :math:`\sigma_{\theta}` is a parameter-dependent noise level. Similar equations
+    are applied for `x_t` (width-translation parameter) and `y_t` (height-translation parameter).
+
+    Trajectories are reflected at their specified bounds, and initialized at 0.
 
     :param int n_frames: number of temporal samples.
     :param float dt: time between samples in seconds.
@@ -30,8 +37,8 @@ class BrownianMotionGenerator(PhysicsGenerator):
 
     :Example:
 
-    >>> from deepinv.physics.generator import BrownianMotionGenerator
-    >>> generator = BrownianMotionGenerator(n_frames=10, dt=0.04)
+    >>> from deepinv.physics.generator import RigidMotionGenerator
+    >>> generator = RigidMotionGenerator(n_frames=10, dt=0.04)
     >>> params = generator.step(batch_size=2, seed=0)
     >>> params["theta"].shape
     torch.Size([2, 10])
@@ -82,6 +89,15 @@ class BrownianMotionGenerator(PhysicsGenerator):
         sigma: float,
         bound: float,
     ) -> torch.Tensor:
+        r"""
+        Generate a trajectory following a Brownian motion.
+
+        :param int batch_size: batch size.
+        :param int n_frames: number of temporal samples.
+        :param float sigma: noise level.
+        :param float bound: maximum absolute bound for the parameter.
+        :return: trajectory, torch.Tensor of shape ``(batch_size, n_frames)``.
+        """
         increments = (
             sigma
             * self.dt**0.5
@@ -109,7 +125,7 @@ class BrownianMotionGenerator(PhysicsGenerator):
         n_frames: int | None = None,
         **kwargs,
     ) -> dict[str, torch.Tensor]:
-        """Generate a batch of motion trajectories.
+        r"""Generate a batch of motion trajectories.
 
         :param int batch_size: number of trajectories.
         :param int, str seed: optional random seed.

@@ -4,7 +4,7 @@ from deepinv.physics.generator import (
     RandomMaskGenerator,
     PolyOrderMaskGenerator,
     SequentialMaskGenerator,
-    BrownianMotionGenerator,
+    RigidMotionGenerator,
 )
 from deepinv.physics.generator.base import seed_from_string
 import pytest
@@ -50,8 +50,8 @@ MRI_ACCELERATIONS = [4, 10, 12]
 MRI_CENTER_FRACTIONS = [0, 0.04, 24 / 512]
 
 
-def test_brownian_motion_generator(device):
-    generator = BrownianMotionGenerator(
+def test_rigid_motion_generator(device):
+    generator = RigidMotionGenerator(
         n_frames=32,
         dt=0.04,
         rotation_sigma=0.4,
@@ -77,8 +77,8 @@ def test_brownian_motion_generator(device):
     assert torch.any(params["x_shift"] != params["x_shift"].round())
 
 
-def test_brownian_motion_generator_reset_rng(device):
-    generator = BrownianMotionGenerator(n_frames=8, device=device)
+def test_rigid_motion_generator_reset_rng(device):
+    generator = RigidMotionGenerator(n_frames=8, device=device)
     initial = generator.step(batch_size=1)
     generator.step(batch_size=1)
     generator.reset_rng()

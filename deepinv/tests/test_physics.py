@@ -1224,14 +1224,14 @@ def test_time_varying_motion_matches_individual_shifts(device):
     assert "_motion_param_x_shift" in motion.state_dict()
 
 
-def test_sequential_multicoil_mri_brownian_subpixel_motion(device):
+def test_sequential_multicoil_mri_rigid_subpixel_motion(device):
     batch_size, channels, coils, time, height, width = 2, 2, 3, 5, 9, 11
     x = torch.randn(batch_size, channels, height, width, device=device)
     mask = torch.ones(batch_size, channels, time, height, width, device=device)
     coil_maps = torch.randn(
         batch_size, coils, height, width, device=device, dtype=torch.complex64
     )
-    generator = dinv.physics.generator.BrownianMotionGenerator(
+    generator = dinv.physics.generator.RigidMotionGenerator(
         n_frames=time,
         rotation_sigma=0.0,
         translation_sigma=0.5,

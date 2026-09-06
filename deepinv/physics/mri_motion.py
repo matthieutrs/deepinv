@@ -10,24 +10,29 @@ from deepinv.transform import Transform
 
 
 class TimeVaryingMotion(LinearPhysics):
-    r"""Apply a DeepInv transform with different parameters at each time step.
+    r"""Apply a deepinv transform with different parameters at each time step.
 
     The operator acts on 2D dynamic images of shape ``(B,C,T,H,W)`` and
     applies one transform parameter set to each ``(batch,time)`` image.
-    Existing transforms otherwise interpret multiple parameters as multiple
-    transformations of the complete batch.
+
+    More precisely, given a tensor :math:`x` of shape ``(B,C,T,H,W)`` and a transform :math:`T(\cdot, \theta)`
+    parametrized by :math:`\theta`, this class applies
+
+    .. math::
+        y_{b, t} = T(x_{b, t}, \theta_{b, t}).
 
     Motion parameters may be stored at construction, changed persistently
     using ``update``, or overridden for one call to :meth:`A` or
     :meth:`A_adjoint`.
 
+    .. note::
+        This is a new functionality that is not yet supported by all transforms. Please do not hesitate to raise an
+        issue in case of an unexpected behavior.
+
     :param Transform transform: deterministic DeepInv transform with
         ``n_trans=1`` and constant output shape.
     :param motion_params: optional mapping of parameters with leading
         dimensions ``(B,T)``.
-    :param str adjoint: adjoint implementation. Currently only ``"inverse"``
-        is supported, so the wrapped transform's inverse must be its
-        mathematical adjoint when exact adjointness is required.
     :param torch.device, str device: operator device.
 
     |sep|
@@ -53,7 +58,6 @@ class TimeVaryingMotion(LinearPhysics):
         self,
         transform: Transform,
         motion_params: Mapping[str, Tensor] | None = None,
-        adjoint: str = "inverse",
         device: torch.device | str = "cpu",
     ):
         super().__init__(device=device)
@@ -65,12 +69,7 @@ class TimeVaryingMotion(LinearPhysics):
             raise ValueError("TimeVaryingMotion requires transform.n_trans == 1.")
         if not transform.constant_shape:
             raise ValueError("TimeVaryingMotion requires a constant-shape transform.")
-        if adjoint != "inverse":
-            raise ValueError(
-                'TimeVaryingMotion currently supports only adjoint="inverse".'
-            )
         self.transform = transform
-        self.adjoint_mode = adjoint
         if motion_params is not None:
             self.update_parameters(motion_params=motion_params)
         self.to(device)
@@ -82,7 +81,7 @@ class TimeVaryingMotion(LinearPhysics):
         time_size: int | None = None,
         device: torch.device | str | None = None,
     ) -> dict[str, Tensor]:
-        """Validate and optionally broadcast motion parameters.
+        r"""Validate and optionally broadcast motion parameters.
 
         :param Mapping[str, torch.Tensor] params: parameter tensors with leading
             batch and time dimensions ``(B,T)``.
@@ -167,6 +166,15 @@ class TimeVaryingMotion(LinearPhysics):
         motion_params: Mapping[str, Tensor] | None,
         inverse: bool,
     ) -> Tensor:
+        r"""
+        Applies motion parameters to ``x``.
+
+        :param torch.Tensor x: input tensor with shape ``(B,C,T,H,W)``.
+        :param Mapping[str, torch.Tensor] motion_params: parameter tensors with
+        leading batch and time dimensions ``(B,T)``.
+        :param bool inverse: whether to invert the transform
+        :return: transformed tensor with shape ``(B,C,T,H,W)``.
+        """
         if x.ndim != 5:
             raise ValueError(
                 "TimeVaryingMotion currently supports 2D dynamic images with "
@@ -183,6 +191,7 @@ class TimeVaryingMotion(LinearPhysics):
             raise ValueError("TimeVaryingMotion requires non-empty motion parameters.")
 
         output = torch.empty_like(x)
+        # note: batching over t dimension should be supported - but this requires careful check of transforms, would be worth splitting in another PR
         for t in range(x.shape[2]):
             frame_params = {name: value[:, t] for name, value in params.items()}
             if inverse:
@@ -199,7 +208,7 @@ class TimeVaryingMotion(LinearPhysics):
         motion_params: Mapping[str, Tensor] | None = None,
         **kwargs,
     ) -> Tensor:
-        """Apply the time-varying transform.
+        r"""Apply the time-varying transform.
 
         :param torch.Tensor x: dynamic image with shape ``(B,C,T,H,W)``.
         :param Mapping[str, torch.Tensor] motion_params: optional per-call
@@ -214,9 +223,7 @@ class TimeVaryingMotion(LinearPhysics):
         motion_params: Mapping[str, Tensor] | None = None,
         **kwargs,
     ) -> Tensor:
-        """Apply the adjoint time-varying transform.
-
-        The inverse of the wrapped transform is used as its adjoint.
+        r"""Apply the adjoint (reverse) time-varying transform.
 
         :param torch.Tensor x: dynamic image with shape ``(B,C,T,H,W)``.
         :param Mapping[str, torch.Tensor] motion_params: optional per-call
