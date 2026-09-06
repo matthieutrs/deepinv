@@ -42,14 +42,15 @@ class TimeVaryingMotion(LinearPhysics):
     >>> import torch
     >>> from deepinv.physics import TimeVaryingMotion
     >>> from deepinv.transform import Shift
-    >>> x = torch.randn(1, 2, 3, 8, 8)  # (B,C,T,H,W)
+    >>> x = torch.zeros(1, 1, 3, 5, 6)  # (B,C,T,H,W)
+    >>> x[0, 0, :, 2, 1] = 1  # Same impulse at (y,x)=(2,1) in every frame
     >>> params = {
     ...     "x_shift": torch.tensor([[0, 1, 2]]),
     ...     "y_shift": torch.tensor([[0, 0, -1]]),
     ... }
     >>> motion = TimeVaryingMotion(Shift(), motion_params=params)
-    >>> motion(x).shape
-    torch.Size([1, 2, 3, 8, 8])
+    >>> motion(x)[0, 0].nonzero().tolist()  # Coordinates are (t,y,x)
+    [[0, 2, 1], [1, 2, 2], [2, 1, 3]]
     """
 
     _motion_param_prefix = "_motion_param_"
