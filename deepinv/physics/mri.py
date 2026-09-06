@@ -703,9 +703,11 @@ class DynamicMultiCoilMRI(MultiCoilMRI, TimeMixin):
 
     .. math::
 
-        y_{n, t} = \text{diag}(p) F \text{diag}(s_n) x_t
+        y_{n,t} = \operatorname{diag}(p_t) F \operatorname{diag}(s_n) x_t
 
-    for :math:`n=1,\dots,N` coils and :math:`t=1, \dots, T` timesteps where :math:`y_{n, t}` are measurements from the cth coil at time `t`, :math:`\text{diag}(p)` is the acceleration mask, :math:`F` is the Fourier transform and :math:`\text{diag}(s_n)` is the nth coil sensitivity.
+    for :math:`n=1,\dots,N` coils and :math:`t=1,\dots,T` time steps, where
+    :math:`p_t` is the sampling mask at time :math:`t`, :math:`F` is the spatial
+    Fourier transform, and :math:`s_n` is the sensitivity of the nth coil.
 
     The input image has shape ``(B, 2, T, H, W)`` and the output k-space has
     shape ``(B, 2, N, T, H, W)``, where ``N`` is the number of coils. Static
@@ -714,6 +716,23 @@ class DynamicMultiCoilMRI(MultiCoilMRI, TimeMixin):
     :param torch.Tensor mask: dynamic mask with shape ``(B, 2, T, H, W)`` or
         any broadcast-compatible shape accepted by :class:`MultiCoilMRI`.
     :param torch.Tensor coil_maps: complex coil maps with shape ``(B,N,H,W)``.
+    :param tuple img_size: image size used when ``mask`` or ``coil_maps`` is not
+        specified.
+    :param bool three_d: if ``True``, apply a 3D spatial Fourier transform.
+    :param torch.device, str device: computation device.
+
+    |sep|
+
+    :Example:
+
+    >>> import torch
+    >>> from deepinv.physics import DynamicMultiCoilMRI
+    >>> x = torch.randn(1, 2, 3, 8, 8)  # (B,2,T,H,W)
+    >>> mask = torch.ones_like(x)
+    >>> coil_maps = torch.ones(1, 4, 8, 8, dtype=torch.complex64)
+    >>> physics = DynamicMultiCoilMRI(mask=mask, coil_maps=coil_maps)
+    >>> physics(x).shape
+    torch.Size([1, 2, 4, 3, 8, 8])
     """
 
     def _flatten_coil_maps(self, batch_size: int, time_size: int) -> Tensor:
@@ -815,7 +834,7 @@ class DynamicMultiCoilMRI(MultiCoilMRI, TimeMixin):
 
         :param torch.Tensor y: input tensor with shape ``(B, 2, N, T, H, W)`` or ``(B, 2, N, T, D, H, W)``
         :param torch.Tensor mask: input temporal mask with shape ``(B, 2, T, H, W)``
-        :param torch.Tensor coil_map: complex coil maps with shape ``(B,N,H,W)``.
+        :param torch.Tensor coil_maps: complex coil maps with shape ``(B,N,H,W)``.
         :returns: (:class:`torch.Tensor`) output tensor with shape ``(B, 2, T, H, W)`` or ``(B, 2, T, D, H, W)``
         """
         mask = self.check_mask(self.mask if mask is None else mask).to(y.device)
@@ -928,10 +947,11 @@ class DynamicMultiCoilMRI(MultiCoilMRI, TimeMixin):
 class SequentialMultiCoilMRI(DynamicMultiCoilMRI):
     r"""Sequential multi-coil MRI of a static image.
 
-    The temporality is applied as a transform to the image.
+    The static image is repeated over time and can optionally undergo a
+    different motion transform in every frame:
 
     .. math::
-        y_{n, t} = \text{diag}(p_t) F \text{diag}(s_n) T(x)
+        y_{n,t} = \operatorname{diag}(p_t) F \operatorname{diag}(s_n) T_t(x).
 
     The input image has shape ``(B,2,H,W)``. It is repeated across the time
     dimension and sampled with a dynamic mask, producing measurements of shape
@@ -940,8 +960,30 @@ class SequentialMultiCoilMRI(DynamicMultiCoilMRI):
     ``(B,2,N,T,D,H,W)``.
 
     :param TimeVaryingMotion motion: optional deterministic motion operator.
-    :param motion_params: optional motion parameters with leading dimensions
+    :param dict[str, torch.Tensor] motion_params: optional motion parameters with leading dimensions
         ``(B,T)``. Parameters are stored as buffers.
+    :param torch.Tensor mask: sequential mask with shape ``(B,2,T,H,W)`` or
+        ``(B,2,T,D,H,W)``.
+    :param torch.Tensor coil_maps: complex coil maps with shape ``(B,N,H,W)``
+        or ``(B,N,D,H,W)``.
+    :param tuple img_size: image size used when ``mask`` or ``coil_maps`` is not
+        specified.
+    :param bool three_d: if ``True``, apply a 3D spatial Fourier transform.
+    :param torch.device, str device: computation device.
+
+    |sep|
+
+    :Example:
+
+    >>> import torch
+    >>> from deepinv.physics import SequentialMultiCoilMRI
+    >>> x = torch.randn(1, 2, 8, 8)  # Static image (B,2,H,W)
+    >>> mask = torch.zeros(1, 2, 3, 8, 8)
+    >>> mask[:, :, 0, :, 1] = mask[:, :, 1, :, 3] = mask[:, :, 2, :, 6] = 1
+    >>> coil_maps = torch.ones(1, 4, 8, 8, dtype=torch.complex64)
+    >>> physics = SequentialMultiCoilMRI(mask=mask, coil_maps=coil_maps)
+    >>> physics(x).shape
+    torch.Size([1, 2, 4, 3, 8, 8])
     """
 
     def __init__(
@@ -986,12 +1028,16 @@ class SequentialMultiCoilMRI(DynamicMultiCoilMRI):
         motion_params: dict[str, Tensor] = None,
         **kwargs,
     ) -> Tensor:
-        r"""
-        Forward operator.
+        r"""Apply sequential multi-coil sampling to a static image.
 
-        :param torch.Tensor x: input image of shape (B, 2, N, ...)
-        :param torch.Tensor mask: mask of shape (B, 2, T, ...)
-        :return torch.Tensor y: temporal measurements of shape ``(B,2,N,T, ...)``
+        :param torch.Tensor x: static image with shape ``(B,2,H,W)`` or
+            ``(B,2,D,H,W)``.
+        :param torch.Tensor mask: optional sequential mask with shape
+            ``(B,2,T,H,W)`` or ``(B,2,T,D,H,W)``.
+        :param dict[str, torch.Tensor] motion_params: optional per-call motion
+            parameters with leading dimensions ``(B,T)``.
+        :return: Temporal measurements with shape ``(B,2,N,T,H,W)`` or
+            ``(B,2,N,T,D,H,W)``.
         """
         mask = self.mask if mask is None else self.check_mask(mask)
         x = self.repeat(x, mask)
@@ -1008,9 +1054,23 @@ class SequentialMultiCoilMRI(DynamicMultiCoilMRI):
         blind: bool = False,
         **kwargs,
     ) -> Tensor:
-        r"""
-        Adjoint operator.
-        TODO
+        r"""Apply the adjoint and optionally retain its temporal decomposition.
+
+        Motion correction is applied frame by frame before the temporal sum.
+        Set ``blind=True`` to omit motion correction while retaining all other
+        adjoint operations.
+
+        :param torch.Tensor y: temporal measurements with shape
+            ``(B,2,N,T,H,W)`` or ``(B,2,N,T,D,H,W)``.
+        :param torch.Tensor mask: optional sequential mask with shape
+            ``(B,2,T,H,W)`` or ``(B,2,T,D,H,W)``.
+        :param dict[str, torch.Tensor] motion_params: optional per-call motion
+            parameters with leading dimensions ``(B,T)``.
+        :param bool keep_time_dim: if ``True``, return one adjoint image per
+            frame instead of summing over time.
+        :param bool blind: if ``True``, do not apply the adjoint motion transform.
+        :return: Adjoint image with shape ``(B,2,H,W)`` or ``(B,2,D,H,W)``.
+            If ``keep_time_dim=True``, retain the time dimension after channel.
         """
         x = super().A_adjoint(y, mask=mask, **kwargs)
         if self.motion is not None and not blind:

@@ -134,16 +134,14 @@ class BaseMaskGenerator(PhysicsGenerator, ABC):
 
 
 class SequentialMaskGenerator(PhysicsGenerator):
-    """Generates a sequential Cartesian mask.
+    r"""Generates a sequential Cartesian mask.
 
     The wrapped generator first generates a mask, and then selects the set of non-zero mask columns.
     It then creates an indexed mask with one column per selected time stamp, ordered from
     left to right by default. The temporal union is exactly the wrapped static
     mask.
 
-    # TODO: below is the mathematical definition, but it's probably too indigestible
-    Mathematically, the sequential (temporal) Cartesian mask is constructed from a static
-    Cartesian mask as
+    The sequential Cartesian mask is constructed from a static mask as
 
     .. math::
 
@@ -190,10 +188,10 @@ class SequentialMaskGenerator(PhysicsGenerator):
 
     >>> spatial = EquispacedMaskGenerator((2, 8, 16), acceleration=4)
     >>> generator = SequentialMaskGenerator(spatial)
-    >>> mask = generator.step(batch_size=1)["mask"]
+    >>> mask = generator.step(batch_size=1, seed=0)["mask"]
     >>> mask.shape[:2]
     torch.Size([1, 2])
-    >>> torch.equal(mask.amax(dim=2), spatial.step(batch_size=1)["mask"])
+    >>> torch.equal(mask.amax(dim=2), spatial.step(batch_size=1, seed=0)["mask"])
     True
     """
 

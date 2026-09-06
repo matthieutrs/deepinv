@@ -8,7 +8,10 @@ from deepinv.physics.generator.base import PhysicsGenerator
 class BrownianMotionGenerator(PhysicsGenerator):
     r"""Generate bounded Brownian rigid-motion trajectories for 2D MRI.
 
-    TODO
+    Rotations and horizontal and vertical translations start at zero and evolve
+    independently. Each increment is Gaussian with standard deviation
+    :math:`\sigma\sqrt{\Delta t}`. Trajectories are reflected at their specified
+    bounds, rather than clipped, to avoid accumulating probability mass there.
 
     :param int n_frames: number of temporal samples.
     :param float dt: time between samples in seconds.
@@ -22,6 +25,18 @@ class BrownianMotionGenerator(PhysicsGenerator):
     :param torch.Generator rng: random number generator.
     :param str, torch.device device: generation device.
     :param torch.dtype dtype: generated tensor dtype.
+
+    |sep|
+
+    :Example:
+
+    >>> from deepinv.physics.generator import BrownianMotionGenerator
+    >>> generator = BrownianMotionGenerator(n_frames=10, dt=0.04)
+    >>> params = generator.step(batch_size=2, seed=0)
+    >>> params["theta"].shape
+    torch.Size([2, 10])
+    >>> sorted(params)
+    ['theta', 'x_shift', 'y_shift']
     """
 
     def __init__(
@@ -94,7 +109,15 @@ class BrownianMotionGenerator(PhysicsGenerator):
         n_frames: int | None = None,
         **kwargs,
     ) -> dict[str, torch.Tensor]:
-        """Generate a batch of motion trajectories."""
+        """Generate a batch of motion trajectories.
+
+        :param int batch_size: number of trajectories.
+        :param int, str seed: optional random seed.
+        :param int n_frames: optional number of samples overriding the value set
+            at initialization.
+        :return: Dictionary containing ``theta`` in degrees and ``x_shift`` and
+            ``y_shift`` in pixels. Each tensor has shape ``(batch_size,n_frames)``.
+        """
         self.rng_manual_seed(seed)
         n_frames = self.n_frames if n_frames is None else n_frames
         if batch_size < 1:

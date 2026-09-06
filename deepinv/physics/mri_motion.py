@@ -18,7 +18,7 @@ class TimeVaryingMotion(LinearPhysics):
     transformations of the complete batch.
 
     Motion parameters may be stored at construction, changed persistently
-    using :meth:`update`, or overridden for one call to :meth:`A` or
+    using ``update``, or overridden for one call to :meth:`A` or
     :meth:`A_adjoint`.
 
     :param Transform transform: deterministic DeepInv transform with
@@ -29,6 +29,22 @@ class TimeVaryingMotion(LinearPhysics):
         is supported, so the wrapped transform's inverse must be its
         mathematical adjoint when exact adjointness is required.
     :param torch.device, str device: operator device.
+
+    |sep|
+
+    :Example:
+
+    >>> import torch
+    >>> from deepinv.physics import TimeVaryingMotion
+    >>> from deepinv.transform import Shift
+    >>> x = torch.randn(1, 2, 3, 8, 8)  # (B,C,T,H,W)
+    >>> params = {
+    ...     "x_shift": torch.tensor([[0, 1, 2]]),
+    ...     "y_shift": torch.tensor([[0, 0, -1]]),
+    ... }
+    >>> motion = TimeVaryingMotion(Shift(), motion_params=params)
+    >>> motion(x).shape
+    torch.Size([1, 2, 3, 8, 8])
     """
 
     _motion_param_prefix = "_motion_param_"
@@ -66,7 +82,18 @@ class TimeVaryingMotion(LinearPhysics):
         time_size: int | None = None,
         device: torch.device | str | None = None,
     ) -> dict[str, Tensor]:
-        """Validate motion parameters and optionally broadcast to ``(B,T,...)``."""
+        """Validate and optionally broadcast motion parameters.
+
+        :param Mapping[str, torch.Tensor] params: parameter tensors with leading
+            batch and time dimensions ``(B,T)``.
+        :param int batch_size: target batch size. Must be provided together with
+            ``time_size``.
+        :param int time_size: target number of time steps. Must be provided
+            together with ``batch_size``.
+        :param torch.device, str device: optional device for returned tensors.
+        :return: Validated parameters, broadcast to ``(batch_size,time_size,...)``
+            when target dimensions are provided.
+        """
         if params is not None and not isinstance(params, Mapping):
             raise TypeError("motion_params must be a mapping from names to tensors.")
         if (batch_size is None) != (time_size is None):
@@ -110,7 +137,14 @@ class TimeVaryingMotion(LinearPhysics):
         motion_params: Mapping[str, Tensor] | None = None,
         **kwargs,
     ) -> None:
-        """Update the stored motion parameters."""
+        """Update motion parameters stored as operator buffers.
+
+        Existing motion-parameter buffers are replaced when ``motion_params``
+        is provided.
+
+        :param Mapping[str, torch.Tensor] motion_params: parameter tensors with
+            leading batch and time dimensions ``(B,T)``.
+        """
         super().update_parameters(**kwargs)
         if motion_params is not None:
             checked = self.check_params(
@@ -165,7 +199,13 @@ class TimeVaryingMotion(LinearPhysics):
         motion_params: Mapping[str, Tensor] | None = None,
         **kwargs,
     ) -> Tensor:
-        """Apply the time-varying transform."""
+        """Apply the time-varying transform.
+
+        :param torch.Tensor x: dynamic image with shape ``(B,C,T,H,W)``.
+        :param Mapping[str, torch.Tensor] motion_params: optional per-call
+            parameter override with leading dimensions ``(B,T)``.
+        :return: Transformed dynamic image with the same shape as ``x``.
+        """
         return self._apply_motion(x, motion_params, inverse=False)
 
     def A_adjoint(
@@ -174,5 +214,13 @@ class TimeVaryingMotion(LinearPhysics):
         motion_params: Mapping[str, Tensor] | None = None,
         **kwargs,
     ) -> Tensor:
-        """Apply the adjoint of the time-varying transform."""
+        """Apply the adjoint time-varying transform.
+
+        The inverse of the wrapped transform is used as its adjoint.
+
+        :param torch.Tensor x: dynamic image with shape ``(B,C,T,H,W)``.
+        :param Mapping[str, torch.Tensor] motion_params: optional per-call
+            parameter override with leading dimensions ``(B,T)``.
+        :return: Adjoint-transformed dynamic image with the same shape as ``x``.
+        """
         return self._apply_motion(x, motion_params, inverse=True)
