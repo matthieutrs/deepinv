@@ -189,8 +189,8 @@ class SequentialMaskGenerator(PhysicsGenerator):
     >>> spatial = EquispacedMaskGenerator((2, 8, 16), acceleration=4)
     >>> generator = SequentialMaskGenerator(spatial)
     >>> mask = generator.step(batch_size=1, seed=0)["mask"]
-    >>> mask.shape[:2]
-    torch.Size([1, 2])
+    >>> mask.shape  # (B,C,T,H,W), with T = W // acceleration = 4
+    torch.Size([1, 2, 4, 8, 16])
     >>> torch.equal(mask.amax(dim=2), spatial.step(batch_size=1, seed=0)["mask"])
     True
     """
